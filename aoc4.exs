@@ -6,35 +6,66 @@ defmodule AOC4 do
     {numbers, boards}
   end
 
-  def mark_boards(boards) do
-
+  def mark_boards(boards, number) do
+    Enum.map(boards, fn board ->
+      Enum.map(board, fn x ->
+        if x == number, do: :mark, else: x
+      end)
+    end)
   end
 
   def is_winner(board) do
+    rows = Enum.chunk_every(board, 5)
+    any_row = Enum.map(rows, fn row ->
+      Enum.all?(row, fn value -> value == :mark end)
+    end)
+    |> IO.inspect(label: "Finding Winner")
+    |> Enum.any?()
 
+    any_col = Enum.map(0..4, fn i ->
+      {_, rest} = Enum.split(board, i)
+      IO.inspect(rest)
+      Enum.take_every(rest, 5) |> Enum.all?(fn val -> val == :mark end)
+    end)
+    |> IO.inspect(label: "COLCHECK")
+    |> Enum.any?()
+
+    any_row or any_col
   end
 
   def have_winner(boards) do
-
+    winning_index = Enum.map(boards, &is_winner/1)
+    |> IO.inspect(label: "Have Winner")
+    |> Enum.find_index(fn b -> b end)
+    |> IO.inspect(label: "Winning index")
+    if winning_index, do: Enum.at(boards, winning_index), else: false
   end
 
   def play_bingo(numbers, boards) do
-    Enum.reduce_while(numbers, boards, fn -> number, boards ->
-      cond have_winner(boards) do
-        winner -> {:halt, winner}
-        _ -> mark_boards(boards)
+    Enum.reduce_while(numbers, {boards, 0}, fn number, {boards, _winning_number} ->
+      IO.puts("Let's play a round of bingo! The number is #{number}")
+      IO.puts("Our boards look like this:")
+      IO.inspect(boards)
+      boards = mark_boards(boards, number)
+      case have_winner(boards) do
+        false -> {:cont, {boards, number}}
+        winner -> {:halt, {winner, number}}
       end
     end)
   end
 
   def board_score(board) do
-    Enum.sum(board)
+    board
+    |> Enum.filter(fn x -> x != :mark end)
+    |> Enum.sum()
   end
 
   def winning_board_score(input) do
     {numbers, boards} = parse(input)
-    winning_board = play_bingo(numbers, boards)
-    board_score(winning_board)
+    {winning_board, winning_number} = play_bingo(numbers, boards)
+    IO.inspect(winning_board, label: "Winning board")
+    {score, winning_number} = {board_score(winning_board), winning_number}
+    {score, winning_number, score * winning_number}
   end
 end
 
@@ -664,4 +695,4 @@ input_test = "
  2  0 12  3  7
 "
 
-IO.puts(AOC4.winning_board_score(input_test))
+IO.inspect(AOC4.winning_board_score(input))
