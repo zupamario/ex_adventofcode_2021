@@ -1,12 +1,18 @@
 defmodule AOC4 do
+  require Logger
+
   def parse(input) do
+    # Take first line of input and split on commas -> Our Bingo numbers
     [first | rest] = String.split(input)
     numbers = first |> String.split(",") |> Enum.map(&String.to_integer/1)
+
+    # Rest of the numbers is lumped together in one array -> Chunk every 25 numbers to get a list of Bingo boards
     boards = Enum.map(rest, &String.to_integer/1) |> Enum.chunk_every(25)
     {numbers, boards}
   end
 
   def mark_boards(boards, number) do
+    # For every board we exchange the called number with a :mark atom
     Enum.map(boards, fn board ->
       Enum.map(board, fn x ->
         if x == number, do: :mark, else: x
@@ -15,56 +21,70 @@ defmodule AOC4 do
   end
 
   def is_winner(board) do
+    # Check if we have a full row of :mark atoms
     rows = Enum.chunk_every(board, 5)
     any_row = Enum.map(rows, fn row ->
       Enum.all?(row, fn value -> value == :mark end)
     end)
-    |> IO.inspect(label: "Finding Winner")
     |> Enum.any?()
 
+    # Check if we have a full column of :mark atoms
     any_col = Enum.map(0..4, fn i ->
       {_, rest} = Enum.split(board, i)
-      IO.inspect(rest)
       Enum.take_every(rest, 5) |> Enum.all?(fn val -> val == :mark end)
     end)
-    |> IO.inspect(label: "COLCHECK")
     |> Enum.any?()
 
     any_row or any_col
   end
 
-  def have_winner(boards) do
-    winning_index = Enum.map(boards, &is_winner/1)
-    |> IO.inspect(label: "Have Winner")
-    |> Enum.find_index(fn b -> b end)
-    |> IO.inspect(label: "Winning index")
-    if winning_index, do: Enum.at(boards, winning_index), else: false
+  def find_winners(boards) do
+    Enum.group_by(boards, &is_winner/1)
+    |> IO.inspect(label: "WINNING GROUPS")
+    |> case do
+      %{true: winners, false: rest} ->
+        IO.inspect(winners, label: "WINNER BOARDS")
+        IO.inspect(rest, label: "REST BOARDS")
+        {winners, rest}
+      %{true: winners} ->
+        IO.inspect(winners, label: "ALL WINNERS")
+        {winners, []}
+      %{false: rest} ->
+        IO.puts("NO WINNERS")
+        {[], rest}
+      %{} ->
+        IO.puts("NO MORE BOARDS")
+        {[], []}
+    end
   end
 
   def play_bingo(numbers, boards) do
-    Enum.reduce_while(numbers, {boards, 0}, fn number, {boards, _winning_number} ->
+    Enum.reduce(numbers, {boards, []}, fn number, {boards, all_winners} ->
       IO.puts("Let's play a round of bingo! The number is #{number}")
       IO.puts("Our boards look like this:")
       IO.inspect(boards)
       boards = mark_boards(boards, number)
-      case have_winner(boards) do
-        false -> {:cont, {boards, number}}
-        winner -> {:halt, {winner, number}}
+      case find_winners(boards) do
+        {[], rest} -> {rest, all_winners}
+        {winners, []} -> {[], [{number, winners} | all_winners]}
+        {winners, rest} -> {rest, [{number, winners} | all_winners]}
       end
     end)
   end
 
   def board_score(board) do
     board
-    |> Enum.filter(fn x -> x != :mark end)
+    |> Enum.filter(&(&1 != :mark))
     |> Enum.sum()
   end
 
   def winning_board_score(input) do
     {numbers, boards} = parse(input)
-    {winning_board, winning_number} = play_bingo(numbers, boards)
-    IO.inspect(winning_board, label: "Winning board")
-    {score, winning_number} = {board_score(winning_board), winning_number}
+    {remaining_boars, winners} = play_bingo(numbers, boards)
+    IO.inspect(winners, label: "Winners")
+    # To get solution for part 1 just take the last board in the list of winners
+    {winning_number, first_winners} = Enum.at(winners, 0)
+    score = board_score(Enum.at(first_winners, 0))
     {score, winning_number, score * winning_number}
   end
 end
