@@ -1,34 +1,35 @@
 defmodule AOC6 do
   def parse(input) do
-    String.split(input, ",")
+    num_fish_per_day = String.split(input, ",")
     |> Enum.map(&String.to_integer/1)
+    |> Enum.frequencies()
+    Map.merge(%{0=>0, 1=>0, 2=>0, 3=>0, 4=>0, 5=>0, 6=>0, 7=>0, 8=>0}, num_fish_per_day)
   end
 
-  def tick_down(fishes) do
-    Enum.map(fishes, fn fish ->
-      if fish == 0, do: 6, else: fish - 1
-    end)
+  def simulate(fishes, 0) do
+    fishes
   end
 
-  def spawn_fishes(fishes) do
-    Enum.reduce(fishes, fishes, fn fish, new_fishes ->
-      if fish == 0, do: [9 | new_fishes], else: new_fishes
-    end)
-  end
-
-  def simulate(initial, steps) do
-    Enum.reduce(1..steps, initial, fn day, fishes ->
-      IO.inspect(day, label: "DAY")
-      #IO.inspect(fishes, label: "FISHES")
-      new_fishes = spawn_fishes(fishes)
-      tick_down(new_fishes)
-    end)
+  def simulate(fishes, steps) do
+    num_zero = fishes[0]
+    fishes = %{fishes | 0 => fishes[1]}
+    fishes = %{fishes | 1 => fishes[2]}
+    fishes = %{fishes | 2 => fishes[3]}
+    fishes = %{fishes | 3 => fishes[4]}
+    fishes = %{fishes | 4 => fishes[5]}
+    fishes = %{fishes | 5 => fishes[6]}
+    fishes = %{fishes | 6 => fishes[7] + num_zero}
+    fishes = %{fishes | 7 => fishes[8]}
+    fishes = %{fishes | 8 => num_zero}
+    #IO.inspect(fishes)
+    simulate(fishes, steps - 1)
   end
 
   def lanternfish(input) do
     parse(input)
     |> simulate(256)
-    |> Enum.count()
+    |> Map.values()
+    |> Enum.sum()
   end
 end
 
