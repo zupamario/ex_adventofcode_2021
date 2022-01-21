@@ -1,0 +1,243 @@
+# AOC18 Explorations
+
+## Module Code
+
+```elixir
+defmodule AOC18 do
+  def neigbor_search_path(path, direction) do
+    # First we walk the back and search for the first turn we can take in desired direction.
+    Enum.drop_while(path, fn dir -> dir == direction end)
+    |> case do
+      [] -> nil
+      [_head | tail] -> [direction | tail]
+    end
+  end
+
+  def increment_left_neighbor([a, b], path, increment) do
+    case path do
+      [:l | tail] -> [increment_left_neighbor(a, tail, increment), b]
+      [:r | tail] -> [a, increment_left_neighbor(b, tail, increment)]
+      [] -> [a, increment_left_neighbor(b, [], increment)]
+    end
+  end
+
+  def increment_left_neighbor(leaf, _path, increment) do
+    leaf + increment
+  end
+
+  def increment_right_neighbor([a, b], path, increment) do
+    IO.inspect({[a, b], path}, label: "TRAVERSAL")
+
+    case path do
+      [:l | tail] -> [increment_right_neighbor(a, tail, increment), b]
+      [:r | tail] -> [a, increment_right_neighbor(b, tail, increment)]
+      [] -> [increment_right_neighbor(a, [], increment), b]
+    end
+  end
+
+  def increment_right_neighbor(leaf_value, _path, increment) do
+    leaf_value + increment
+  end
+
+  def find_value_to_split(tree, path \\ [])
+
+  def find_value_to_split([a, b], path) do
+    left = find_value_to_split(a, [:l | path])
+    if left, do: left, else: find_value_to_split(b, [:r | path])
+  end
+
+  def find_value_to_split(leaf_value, path) do
+    if leaf_value > 9, do: {leaf_value, Enum.reverse(path)}, else: nil
+  end
+
+  def split_value([a, b], path) do
+    case path do
+      [:l | tail] -> [split_value(a, tail), b]
+      [:r | tail] -> [a, split_value(b, tail)]
+    end
+  end
+
+  def split_value(value, []) do
+    [floor(value / 2), ceil(value / 2)]
+  end
+
+  def split(tree) do
+    case find_value_to_split(tree) do
+      nil ->
+        nil
+
+      {_value, path} ->
+        IO.inspect(path, label: "SPLITTING AT PATH")
+
+        split_value(tree, path)
+        |> IO.inspect(charlists: :as_lists)
+    end
+  end
+
+  def split_all(tree) do
+    case split(tree) do
+      nil -> tree
+      new_tree -> split_all(new_tree)
+    end
+  end
+
+  def add_numbers(numbers) do
+    Enum.reduce(numbers, fn n, result ->
+      [result, n]
+    end)
+  end
+
+  def magnitude([a, b]), do: 3 * magnitude(a) + 2 * magnitude(b)
+  def magnitude(leaf_value), do: leaf_value
+end
+```
+
+## Neighbor Path
+
+```elixir
+path = [:l, :l, :l, :l]
+IO.inspect(AOC18.neigbor_search_path(path, :l), label: "LEFT")
+IO.inspect(AOC18.neigbor_search_path(path, :r), label: "RIGHT")
+```
+
+```elixir
+path = [:r, :r, :r, :r]
+IO.inspect(AOC18.neigbor_search_path(path, :l), label: "LEFT")
+IO.inspect(AOC18.neigbor_search_path(path, :r), label: "RIGHT")
+```
+
+```elixir
+path = [:r, :r, :r, :l]
+IO.inspect(AOC18.neigbor_search_path(path, :l), label: "LEFT")
+IO.inspect(AOC18.neigbor_search_path(path, :r), label: "RIGHT")
+```
+
+```elixir
+path = [:r, :r, :l, :l]
+IO.inspect(AOC18.neigbor_search_path(path, :l), label: "LEFT")
+IO.inspect(AOC18.neigbor_search_path(path, :r), label: "RIGHT")
+```
+
+```elixir
+path = [:r, :l, :r, :l]
+IO.inspect(AOC18.neigbor_search_path(path, :l), label: "LEFT")
+IO.inspect(AOC18.neigbor_search_path(path, :r), label: "RIGHT")
+```
+
+## Increment Neigbor
+
+```elixir
+tree = [[[[[1, 1], [2, 2]], [3, 3]], [4, 4]], [5, 5]]
+path = [:l, :l, :l, :l]
+search_path = AOC18.neigbor_search_path(path, :r) |> Enum.reverse()
+IO.inspect(search_path)
+AOC18.increment_right_neighbor(tree, search_path, 7)
+```
+
+```elixir
+tree = [[3, [2, [1, [7, 3]]]], [6, [5, [4, [3, 2]]]]]
+path = [:r, :r, :r, :l]
+search_path = AOC18.neigbor_search_path(path, :l) |> Enum.reverse()
+IO.inspect(search_path)
+tree = AOC18.increment_left_neighbor(tree, search_path, 7)
+
+search_path = AOC18.neigbor_search_path(path, :r) |> Enum.reverse()
+IO.inspect(search_path)
+AOC18.increment_right_neighbor(tree, search_path, 3)
+```
+
+## Value Splitting
+
+```elixir
+tree = [[3, [2, [1, [7, 3]]]], [6, [5, [4, [3, 2]]]]]
+path = [:l, :l]
+AOC18.split_value(tree, path)
+```
+
+```elixir
+tree = [1, [3, [5, [[20, 33], 7]]]]
+path = AOC18.find_value_to_split(tree)
+IO.inspect(path)
+AOC18.split_value(tree, elem(path, 1))
+```
+
+```elixir
+tree = [1, [3, [5, [[1, 2], 7]]]]
+path = AOC18.find_value_to_split(tree)
+IO.inspect(path)
+```
+
+```elixir
+[1, [3, [5, [[20, 33], 7]]]]
+|> AOC18.split()
+|> AOC18.split()
+|> AOC18.split()
+|> AOC18.split()
+|> AOC18.split()
+|> AOC18.split()
+|> AOC18.split()
+```
+
+```elixir
+[1, [3, [5, [[20, 33], 7]]]]
+|> AOC18.split_all()
+```
+
+## Adding Numbers
+
+```elixir
+numbers = [[1, 1], [2, 2], [3, 3], [4, 4]]
+AOC18.add_numbers(numbers)
+```
+
+```elixir
+numbers = [[1, 1], [2, 2], [3, 3], [4, 4], [5, 5]]
+AOC18.add_numbers(numbers)
+```
+
+```elixir
+numbers = [[1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6]]
+AOC18.add_numbers(numbers)
+```
+
+```elixir
+numbers = [
+  [[[0, [4, 5]], [0, 0]], [[[4, 5], [2, 6]], [9, 5]]],
+  [7, [[[3, 7], [4, 3]], [[6, 3], [8, 8]]]],
+  [[2, [[0, 8], [3, 4]]], [[[6, 7], 1], [7, [1, 6]]]],
+  [[[[2, 4], 7], [6, [0, 5]]], [[[6, 8], [2, 8]], [[2, 1], [4, 5]]]],
+  [7, [5, [[3, 8], [1, 4]]]],
+  [[2, [2, 2]], [8, [8, 1]]],
+  [2, 9],
+  [1, [[[9, 3], 9], [[9, 0], [0, 7]]]],
+  [[[5, [7, 4]], 7], 1],
+  [[[[4, 2], 2], 6], [8, 7]]
+]
+
+AOC18.add_numbers(numbers)
+```
+
+## Magnitude
+
+```elixir
+number = [[1, 2], [[3, 4], 5]]
+IO.puts(AOC18.magnitude(number))
+
+number = [[[[0, 7], 4], [[7, 8], [6, 0]]], [8, 1]]
+IO.puts(AOC18.magnitude(number))
+
+number = [[[[1, 1], [2, 2]], [3, 3]], [4, 4]]
+IO.puts(AOC18.magnitude(number))
+
+number = [[[[3, 0], [5, 3]], [4, 4]], [5, 5]]
+IO.puts(AOC18.magnitude(number))
+
+number = [[[[5, 0], [7, 4]], [5, 5]], [6, 6]]
+IO.puts(AOC18.magnitude(number))
+
+number = [[[[8, 7], [7, 7]], [[8, 6], [7, 7]]], [[[0, 7], [6, 6]], [8, 7]]]
+IO.puts(AOC18.magnitude(number))
+
+number = [[[[6, 6], [7, 6]], [[7, 7], [7, 0]]], [[[7, 7], [7, 7]], [[7, 8], [9, 9]]]]
+IO.puts(AOC18.magnitude(number))
+```
