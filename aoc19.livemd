@@ -1,0 +1,177 @@
+# AOC19
+
+## Module
+
+```elixir
+defmodule AOC19 do
+  def parse(input) do
+    input
+    |> String.split(~r/--- scanner \d+ ---/, trim: true)
+    |> Enum.map(fn s ->
+      String.split(s, " ", trim: true)
+      |> Enum.map(fn sc ->
+        String.split(sc, ",", trim: true)
+        |> Enum.map(fn sv -> String.to_integer(sv) end)
+        |> List.to_tuple()
+      end)
+    end)
+  end
+
+  def find_translations(observations_a, observations_b) do
+    for(
+      {x0, y0, z0} <- observations_a,
+      {x1, y1, z1} <- observations_b,
+      do: {x0 - x1, y0 - y1, z0 - z1}
+    )
+    # |> IO.inspect()
+    |> Enum.frequencies()
+    |> Enum.filter(fn {_key, value} -> value >= 12 end)
+  end
+
+  def align_observations(aligned, not_aligned, scanners \\ [])
+
+  def align_observations(aligned, [], scanners) do
+    {aligned, scanners}
+  end
+
+  def align_observations(aligned, not_aligned, scanners) do
+    alignment_result =
+      Enum.flat_map(aligned, fn curr_aligned ->
+        Enum.map(not_aligned, fn observation ->
+          align_observations_single(curr_aligned, observation)
+        end)
+      end)
+
+    # |> IO.inspect(label: "ALIGNMENT RESULT")
+
+    aligned_index = Enum.find_index(alignment_result, fn x -> x != [] end)
+    aligned_element = Enum.at(Enum.at(alignment_result, aligned_index), 0)
+    # IO.inspect(aligned_element, label: "ALIGNED ELEMENT")
+
+    not_aligned = List.delete_at(not_aligned, aligned_index)
+    aligned = [elem(aligned_element, 2) | aligned]
+    new_scanners = [elem(aligned_element, 1) | scanners]
+
+    align_observations(aligned, not_aligned, new_scanners)
+  end
+
+  def align_observations_single(known, unknown) do
+    permutations = Enum.map(unknown, fn obs -> AOC19.orientation_permutations(obs) end)
+
+    Enum.map(0..23, fn idx ->
+      current = Enum.map(permutations, fn obs -> Enum.at(obs, idx) end)
+
+      case find_translations(known, current) do
+        [] ->
+          nil
+
+        translations ->
+          {{tx, ty, tz}, _count} = Enum.at(translations, 0)
+
+          translated_observation =
+            Enum.map(current, fn {x, y, z} ->
+              {x + tx, y + ty, z + tz}
+            end)
+
+          {idx, translations, translated_observation}
+      end
+    end)
+    |> Enum.filter(fn x -> x != nil end)
+  end
+
+  def rotate_up({x, y, z}, degrees) do
+    # We consider x our up vector we rotate around
+    case degrees do
+      0 -> {x, y, z}
+      90 -> {x, z, -y}
+      180 -> {x, -y, -z}
+      270 -> {x, -z, y}
+    end
+  end
+
+  def orientation_permutations({x, y, z}) do
+    [
+      {x, y, z},
+      {-x, -y, z},
+      {y, -x, z},
+      {-y, x, z},
+      {z, y, -x},
+      {-z, y, x}
+    ]
+    |> Enum.flat_map(fn o ->
+      [rotate_up(o, 0), rotate_up(o, 90), rotate_up(o, 180), rotate_up(o, 270)]
+    end)
+  end
+
+  def manhattan(scanners) do
+    for {x0, y0, z0} <- scanners,
+        {x1, y1, z1} <- scanners,
+        do: abs(x0 - x1) + abs(y0 - y1) + abs(z0 - z1)
+  end
+end
+```
+
+## Input
+
+```elixir
+Mix.install([
+  {:kino, "~> 0.5.0"}
+])
+```
+
+```elixir
+input = Kino.Input.text("Scanners")
+```
+
+```elixir
+full_input = Kino.Input.text("Scanners")
+```
+
+```elixir
+observations =
+  Kino.Input.read(full_input)
+  |> AOC19.parse()
+```
+
+## Orientations
+
+```elixir
+AOC19.orientation_permutations({1, 2, 3})
+```
+
+```elixir
+Enum.map(hd(observations), fn obs -> AOC19.orientation_permutations(obs) end)
+|> Enum.map(fn obs -> Enum.at(obs, 6) end)
+```
+
+## Align Observations
+
+```elixir
+[aligned | not_aligned] = observations
+{aligned, scanners} = AOC19.align_observations([aligned], not_aligned)
+count = List.flatten(aligned) |> Enum.uniq() |> Enum.count()
+
+scanners
+|> List.flatten()
+|> Enum.map(fn s -> elem(s, 0) end)
+|> IO.inspect()
+|> AOC19.manhattan()
+|> Enum.max()
+```
+
+```elixir
+first = Enum.at(observations, 0)
+second = Enum.at(observations, 1)
+AOC19.align_observations_single(first, second)
+```
+
+```elixir
+a = [[0, 2], [4, 1], [3, 3]]
+
+b = [[-1, -1], [-5, 0], [-2, 1]]
+
+for([x0, y0] <- a, [x1, y1] <- b, do: [x0 - x1, y0 - y1])
+|> IO.inspect()
+|> Enum.frequencies()
+|> Enum.filter(fn {_key, value} -> value >= 3 end)
+```
