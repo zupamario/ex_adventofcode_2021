@@ -1,33 +1,46 @@
 defmodule AOC23 do
+  @player_max_index 3
+  @goal_exit_index %{:A => 2, :B => 4, :C => 6, :D => 8}
+
   def parse(_input) do
-    # %{{:A,0} => {:goal,:A,1}, {:B,0} => {:goal,:A,0},
-    #   {:D,0} => {:goal,:B,1}, {:C,0} => {:goal,:B,0},
-    #   {:C,1} => {:goal,:C,1}, {:B,1} => {:goal,:C,0},
-    #   {:A,1} => {:goal,:D,1}, {:D,1} => {:goal,:D,0}}
+    # %{{:A,0} => {:A,1}, {:B,0} => {:A,0},
+    #   {:D,0} => {:B,1}, {:C,0} => {:B,0},
+    #   {:C,1} => {:C,1}, {:B,1} => {:C,0},
+    #   {:A,1} => {:D,1}, {:D,1} => {:D,0}}
 
-    %{{:C,0} => {:goal,:A,1}, {:A,0} => {:goal,:A,0},
-      {:D,0} => {:goal,:B,1}, {:D,1} => {:goal,:B,0},
-      {:B,0} => {:goal,:C,1}, {:A,1} => {:goal,:C,0},
-      {:B,1} => {:goal,:D,1}, {:C,1} => {:goal,:D,0}}
-  end
+    # %{{:A,0} => {:A,0}, {:D,0} => {:B,0}, {:A,1} => {:C,0}, {:C,1} => {:D,0},
+    #   {:C,0} => {:A,1}, {:D,1} => {:B,1}, {:B,0} => {:C,1}, {:B,1} => {:D,1}}
 
-  def goal_exit_index(goal_name) do
-    case goal_name do
-      :A -> 2
-      :B -> 4
-      :C -> 6
-      :D -> 8
-    end
+    # %{{:A,0} => {:A,0}, {:D,0} => {:B,0}, {:A,1} => {:C,0}, {:C,1} => {:D,0},
+    #   {:C,0} => {:A,1}, {:D,1} => {:B,1}, {:B,0} => {:C,1}, {:B,1} => {:D,1},
+    #   {:C,2} => {:A,2}, {:D,2} => {:B,2}, {:B,2} => {:C,2}, {:A,2} => {:D,2}}
+
+    # %{{:A,0} => {:A,0}, {:B,0} => {:B,0}, {:C,0} => {:C,0}, {:D,0} => 10,
+    #   {:D,1} => {:A,1}, {:B,1} => {:B,1}, {:C,1} => {:C,1}, {:A,1} => 0,
+    #   {:A,2} => {:A,2}, {:B,2} => {:B,2}, {:C,2} => {:C,2}, {:D,2} => 9,
+    #   {:D,3} => {:A,3}, {:B,3} => {:B,3}, {:C,3} => {:C,3}, {:A,3} => 1}
+
+    # Test input part 2
+    # %{{:B,0} => {:A,0}, {:C,0} => {:B,0}, {:B,2} => {:C,0}, {:D,3} => {:D,0},
+    #   {:D,0} => {:A,1}, {:C,1} => {:B,1}, {:B,3} => {:C,1}, {:A,2} => {:D,1},
+    #   {:D,1} => {:A,2}, {:B,1} => {:B,2}, {:A,1} => {:C,2}, {:C,3} => {:D,2},
+    #   {:A,0} => {:A,3}, {:D,2} => {:B,3}, {:C,2} => {:C,3}, {:A,3} => {:D,3}}
+
+    # Final input
+    %{{:A,0} => {:A,0}, {:D,2} => {:B,0}, {:A,1} => {:C,0}, {:C,2} => {:D,0},
+      {:D,0} => {:A,1}, {:C,1} => {:B,1}, {:B,1} => {:C,1}, {:A,3} => {:D,1},
+      {:D,1} => {:A,2}, {:B,0} => {:B,2}, {:A,2} => {:C,2}, {:C,3} => {:D,2},
+      {:C,0} => {:A,3}, {:D,3} => {:B,3}, {:B,2} => {:C,3}, {:B,3} => {:D,3}}
   end
 
   def move_out(position) do
     case position do
-      {:goal, name, 0} ->
-        exit_index = goal_exit_index(name)
+      { name, 0} ->
+        exit_index = @goal_exit_index[name]
         {[exit_index], exit_index}
-      {:goal, name, index} ->
-        steps = Enum.map(0..index-1, fn idx -> {:goal, name, idx} end)
-        steps = [goal_exit_index(name) | steps]
+      { name, index} ->
+        steps = Enum.map(0..index-1, fn idx -> { name, idx} end)
+        steps = [@goal_exit_index[name] | steps]
         {steps, hd steps}
       _ ->
         {[], position}
@@ -36,13 +49,14 @@ defmodule AOC23 do
 
   def move_hallway(start, position) do
     case position do
-      {:goal, room_name, room_index} ->
-        room_entrance = goal_exit_index(room_name)
+      { room_name, room_index} ->
+        room_entrance = @goal_exit_index[room_name]
         to_entrance_steps = case start < room_entrance do
           true -> Enum.to_list(room_entrance..start+1)
           false -> Enum.to_list(room_entrance..start-1)
         end
-        room_steps = Enum.map(room_index..0, fn idx -> {:goal, room_name, idx} end)
+        #IO.inspect(to_entrance_steps, label: "TO ENTRANCE STEPS")
+        room_steps = Enum.map(room_index..0, fn idx -> { room_name, idx} end)
         room_steps ++ to_entrance_steps
       _ ->
         case start < position do
@@ -59,17 +73,16 @@ defmodule AOC23 do
   end
 
   def room_has_player(state, type, index) do
-    #OM HAS PLAYER")
     Enum.filter(state, fn {_key, value} -> is_tuple(value) end)
-    |> Enum.any?(fn {{player_type, _}, {_, room_type, room_index}} ->
+    |> Enum.any?(fn {{player_type, _}, {room_type, room_index}} ->
       player_type == type and room_type == type and room_index == index
     end)
   end
 
   def player_is_home?({player_type, _player_idx} = player, state) do
     case state[player] do
-      {:goal, ^player_type, room_index} ->
-          room_index == 1 or Enum.all?(room_index+1..1, fn idx -> room_has_player(state, player_type, idx) end)
+      { ^player_type, room_index} ->
+          room_index == @player_max_index or Enum.all?(room_index+1..@player_max_index, fn idx -> room_has_player(state, player_type, idx) end)
       _ ->
         false
     end
@@ -89,17 +102,19 @@ defmodule AOC23 do
     position = state[player]
     room_move = room_move(player_type, state)
     moves = case position do
-      {:goal, room_name, room_index} -> [room_move,0,1,3,5,7,8,9,10]
+      { room_name, room_index} -> [room_move,0,1,3,5,7,9,10]
       _ -> [room_move]
     end
+    #IO.inspect({position, moves}, label: "PLAYER MOVES")
 
     possible_moves = Enum.reduce(moves, [], fn move, filtered ->
       path = compute_path(position, move)
+      #IO.inspect(path, label: "MOVE PATH")
       cost = move_costs(player_type, path)
       valid = not occupied?(path, state)
       if valid, do: [{move, cost} | filtered], else: filtered
     end)
-    |> Enum.reverse()
+    #|> Enum.reverse()
 
     if possible_moves == [], do: nil, else: possible_moves
   end
@@ -111,86 +126,116 @@ defmodule AOC23 do
   end
 
   def room_move(player_type, state) do
-    Enum.reduce_while(1..0, nil, fn idx, room ->
+    Enum.reduce_while(@player_max_index..0, nil, fn idx, room ->
       if room_has_player(state, player_type, idx) do
         {:cont, nil}
       else
-        {:halt, {:goal, player_type, idx}}
+        {:halt, { player_type, idx}}
       end
     end)
   end
 
-  def iterate(state, call_count \\ 0, call_moves \\ [], call_costs \\ 0) do
-    #IO.inspect({call_count, call_moves}, label: "ITERATE CALL COUNT")
-    #Process.sleep(100)
-
+  def iterate([{state, costs} | other_states], min_costs \\ 999999999999, state_map \\ %{}) do
+    #IO.inspect({costs, length(other_states), min_costs, Enum.count(state_map)}, label: "ITERATING ON STATE")
     players = Map.keys(state)
     finished = Enum.all?(players, fn player -> player_is_home?(player, state) end)
-    if finished do
-      #IO.inspect(state, label: "FINISHED WITH ALL PLAYERS HOME")
-      if call_costs == 15385 do
-        IO.inspect(call_moves, label: "THESE ARE THE MOVES")
-        IO.inspect(call_costs, label: "THIS IS THE COST")
-      end
-    else
-      moves = Enum.map(players, fn player ->
-        if player_is_home?(player, state), do: {player, nil}, else: {player, possible_moves(player, state)}
+
+    moves = Enum.map(players, fn player ->
+      if player_is_home?(player, state), do: {player, nil}, else: {player, possible_moves(player, state)}
+    end)
+
+    moves = Enum.filter(moves, fn {_, move_list} -> move_list != nil end)
+
+    new_states = Enum.flat_map(moves, fn {player, move_list} ->
+      Enum.map(move_list, fn {move, move_costs} ->
+        {Map.put(state, player, move), costs + move_costs}
       end)
+    end)
 
-      no_more_moves = Enum.all?(moves, fn {_, moves} -> moves == nil end)
-      moves = Enum.filter(moves, fn {_, move_list} -> move_list != nil end)
+    #count_before = Enum.count(new_states)
+    new_states = Enum.filter(new_states, fn {state, new_costs} ->
+      simple_state = Enum.map(state, fn {{player_type, player_idx}, position} ->
+        {position, player_type}
+      end) |> Enum.sort()
 
-      if not no_more_moves and not finished do
-        Enum.each(moves, fn {player, move_list} ->
-          Enum.each(move_list, fn {move, move_costs} ->
-            #IO.puts("MOVEING #{inspect player} -> #{inspect move}")
-            new_state = Map.put(state, player, move)
-            iterate(new_state, call_count + 1, [{player, move} | call_moves], call_costs + move_costs)
-            if call_count == 0, do: IO.inspect({player, move}, label: "ITERATE LEVEL 1")
-          end)
-        end)
+      case Map.get(state_map, simple_state) do
+        nil -> new_costs < min_costs
+        existing_costs -> existing_costs > new_costs and new_costs < min_costs
       end
-      #IO.puts("NO MORE MOVES FOR STATE #{inspect state}")
+    end)
+    #count_after = Enum.count(new_states)
+    #IO.puts("FILTERED #{count_before - count_after} states")
+
+    state_map = Enum.reduce(new_states, state_map, fn {state, costs}, state_map ->
+      simple_state = Enum.map(state, fn {{player_type, player_idx}, position} ->
+        {position, player_type}
+      end) |> Enum.sort()
+
+      Map.put(state_map, simple_state, costs)
+    end)
+
+    # if Enum.count(new_states) == 0 do
+    #   IO.inspect(state, label: "NO MORE MOVES FOR STATE")
+    #   Process.sleep(1000)
+    # end
+
+    new_states = new_states ++ other_states
+    #new_states = Enum.sort_by(new_states, fn {_state, costs} -> costs end)
+
+    #Process.sleep(100)
+    if finished do
+      IO.inspect(costs, label: "FINISHED WITH COSTS")
+      min_costs = if costs < min_costs, do: costs, else: min_costs
+      iterate(other_states, min_costs, state_map)
+    else
+      iterate(new_states, min_costs, state_map)
     end
   end
 
+  def iterate([], _min_costs, _state_map) do
+    IO.puts("NO SOLUTION FOUND")
+  end
+
   def solve(input) do
-    parse(input)
-    |> iterate()
+    initial_state = parse(input)
+    #recurse(initial_state)
+    iterate([{initial_state, 0}])
   end
 end
 
-IO.inspect(AOC23.compute_path({:goal, :A, 1}, 10))
-IO.inspect(AOC23.compute_path(10, {:goal, :A, 1}))
-IO.inspect(AOC23.compute_path(0, {:goal, :C, 3}))
-IO.inspect(AOC23.compute_path({:goal, :B, 1}, {:goal, :C, 1}))
+# IO.inspect(AOC23.compute_path({ :A, 1}, 10), label: "PATH A")
+# IO.inspect(AOC23.compute_path(10, { :A, 1}), label: "PATH B")
+# IO.inspect(AOC23.compute_path(0, { :C, 3}), label: "PATH C")
+# IO.inspect(AOC23.compute_path({ :B, 1}, { :C, 1}), label: "PATH D")
 
-state = %{{:A,0} => {:goal,:A,1}, {:A,1} => {:goal,:A,0}}
+# state = %{{:A,0} => {:A,1}, {:A,1} => {:A,0}}
 
-IO.inspect(AOC23.player_is_home?({:A,0}, state), label: "A")
-IO.inspect(AOC23.player_is_home?({:A,1}, state), label: "B")
+# IO.inspect(AOC23.player_is_home?({:A,0}, state), label: "A")
+# IO.inspect(AOC23.player_is_home?({:A,1}, state), label: "B")
 
-state = %{{:A,0} => 5, {:A,1} => {:goal,:A,0}}
-IO.inspect(AOC23.player_is_home?({:A,0}, state), label: "C")
-state = %{{:A,0} => 5, {:A,1} => {:goal,:A,1}}
-IO.inspect(AOC23.player_is_home?({:A,1}, state), label: "D")
+# state = %{{:A,0} => 5, {:A,1} => {:A,0}}
+# IO.inspect(AOC23.player_is_home?({:A,0}, state), label: "C")
+# state = %{{:A,0} => 5, {:A,1} => {:A,1}}
+# IO.inspect(AOC23.player_is_home?({:A,1}, state), label: "D")
 
-state = %{{:B,0} => {:goal,:A,0}, {:A,1} => {:goal,:A,1}}
-IO.inspect(AOC23.player_is_home?({:A,1}, state), label: "E")
+# state = %{{:B,0} => {:A,0}, {:A,1} => {:A,1}}
+# IO.inspect(AOC23.player_is_home?({:A,1}, state), label: "E")
 
-state = %{{:B,0} => {:goal,:A,1}, {:A,1} => {:goal,:A,0}}
-IO.inspect(AOC23.player_is_home?({:A,1}, state), label: "F")
+# state = %{{:B,0} => {:A,1}, {:A,1} => {:A,0}}
+# IO.inspect(AOC23.player_is_home?({:A,1}, state), label: "F")
 
-state = %{{:A,0} => 5, {:A,1} => {:goal,:C,1}}
-IO.inspect(AOC23.possible_moves({:A,0}, state), label: "POSSIBLE MOVES A")
-IO.inspect(AOC23.possible_moves({:A,1}, state), label: "POSSIBLE MOVES B")
+# state = %{{:A,0} => 5, {:A,1} => {:C,1}}
+# IO.inspect(AOC23.possible_moves({:A,0}, state), label: "POSSIBLE MOVES A")
+# IO.inspect(AOC23.possible_moves({:A,1}, state), label: "POSSIBLE MOVES B")
 
-state = %{{:A,0} => {:goal, :A, 1}, {:A,1} => {:goal,:C,1}}
-IO.inspect(AOC23.possible_moves({:A,1}, state), label: "POSSIBLE MOVES C")
+# state = %{{:A,0} => { :A, 1}, {:A,1} => {:C,1}}
+# IO.inspect(AOC23.possible_moves({:A,1}, state), label: "POSSIBLE MOVES C")
 
 IO.inspect(AOC23.solve(""))
 
 #state = AOC23.parse("")
 #IO.inspect(AOC23.possible_moves({:A,0}, state), label: "POSSIBLE MOVES A0")
-#IO.inspect(AOC23.possible_moves({:B,0}, state), label: "POSSIBLE MOVES B0")
-#IO.inspect(AOC23.possible_moves({:A,1}, state), label: "POSSIBLE MOVES A1")
+# IO.inspect(AOC23.possible_moves({:B,0}, state), label: "POSSIBLE MOVES B0")
+# IO.inspect(AOC23.possible_moves({:A,1}, state), label: "POSSIBLE MOVES A1")
+#IO.inspect(AOC23.possible_moves({:D,2}, state), label: "POSSIBLE MOVES D2")
+#IO.inspect(AOC23.possible_moves({:D,0}, state), label: "POSSIBLE MOVES D0")
