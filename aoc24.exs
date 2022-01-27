@@ -63,8 +63,12 @@ defmodule AOC24 do
     %{state | a => eql}
   end
 
-  def evaluate([instruction | rest], input, state) do
-    #IO.inspect(instruction, label: "PROCESSING INSTRUCTION")
+  def evaluate(_, _, state, 0) do
+    state
+  end
+
+  def evaluate([instruction | rest], input, state, instruction_count \\ 18) do
+    #IO.inspect(state.z, label: "PROCESSING INSTRUCTION")
     {input, state} = case instruction do
       {:inp, [a]} -> inp(a, input, state)
       {:add, [a,b]} -> {input, add(a, b, state)}
@@ -73,21 +77,58 @@ defmodule AOC24 do
       {:mod, [a,b]} -> {input, mod(a, b, state)}
       {:eql, [a,b]} -> {input, eql(a, b, state)}
     end
-    evaluate(rest, input, state)
+    #if rem(instruction_count, 18) == 0, do: IO.puts("Z: #{state.z}")
+    evaluate(rest, input, state, instruction_count - 1)
   end
 
-  def evaluate([], _, state) do
+  def evaluate([], _, state, _) do
     state
+  end
+
+  def solve_3(source_code) do
+    program = parse(source_code)
+    initial_state = %{:x => 0, :y => 0, :z => 0, :w => 0}
+    Enum.each(1000..0, fn number ->
+      initial_state = %{:x => 0, :y => 0, :z => number, :w => 0}
+      state = evaluate(program, [9], initial_state, 18)
+      #state = evaluate(program, [9,9,9,9,9,9,9,9,9,9,9,9,9,9], initial_state, 14*18)
+      #if state.z == 0, do: IO.puts("#{number}: #{state.z}")
+      IO.puts("#{number}: #{state.z}")
+    end)
+  end
+
+  def solve_2(source_code) do
+    program = parse(source_code)
+    initial_state = %{:x => 0, :y => 0, :z => 0, :w => 0}
+    Enum.each(9..1, fn number ->
+      state = evaluate(program, [9,3,9,9,8,4,1,1,4,8,1,3,1,1], initial_state, 14*18)
+      #state = evaluate(program, [9,9,9,9,9,9,9,9,9,9,9,9,9,9], initial_state, 14*18)
+      IO.puts("#{number}: #{state.z}\n")
+    end)
   end
 
   def solve(source_code) do
     program = parse(source_code)
     initial_state = %{:x => 0, :y => 0, :z => 0, :w => 0}
 
-    Enum.each(9..1, fn number ->
-      #number = Integer.to_charlist(number) |> Enum.map(fn i -> i - 48 end)
-      state = evaluate(program, [1,9,9,9,8,4,1,1,4,8,1,3,1,9],initial_state)
-      IO.inspect({number, state.z})
+    table = :ets.new(:min_value, [:set, :protected])
+    :ets.insert(table, {:minimum, 9999999999999})
+
+    Enum.each(99999999999999..11111111111111, fn number ->
+      number = Integer.to_charlist(number) |> Enum.map(fn i -> i - 48 end)
+      #number = number ++ [1,1,1,1,1,1,1,1]
+      if Enum.all?(number, fn n -> n > 0 end) do
+        #state = evaluate(program, [1,3,9,9,8,4,1,1,4,8,1,3,1,9],initial_state)
+        state = evaluate(program, number,initial_state, 14*18)
+        #IO.inspect({number, state.z})
+        [{:minimum, minimum}] = :ets.lookup(table, :minimum)
+
+        if state.z < minimum do
+          :ets.insert(table, {:minimum, state.z})
+          IO.puts("NEW MINIMUM #{state.z}")
+          #Process.sleep(1000)
+        end
+      end
     end)
   end
 end
@@ -362,4 +403,160 @@ add y 7
 mul y x
 add z y"
 
-IO.inspect(AOC24.solve(input))
+input_0 = "inp w
+mul x 0
+add x z
+mod x 26
+div z 1
+add x 13
+eql x w
+eql x 0
+mul y 0
+add y 25
+mul y x
+add y 1
+mul z y
+mul y 0
+add y w
+add y 8
+mul y x
+add z y"
+
+input_1 = "inp w
+mul x 0
+add x z
+mod x 26
+div z 1
+add x 12
+eql x w
+eql x 0
+mul y 0
+add y 25
+mul y x
+add y 1
+mul z y
+mul y 0
+add y w
+add y 13
+mul y x
+add z y"
+
+input_2 = "inp w
+mul x 0
+add x z
+mod x 26
+div z 1
+add x 12
+eql x w
+eql x 0
+mul y 0
+add y 25
+mul y x
+add y 1
+mul z y
+mul y 0
+add y w
+add y 8
+mul y x
+add z y"
+
+input_3 = "inp w
+mul x 0
+add x z
+mod x 26
+div z 1
+add x 10
+eql x w
+eql x 0
+mul y 0
+add y 25
+mul y x
+add y 1
+mul z y
+mul y 0
+add y w
+add y 10
+mul y x
+add z y"
+
+input_11 = "inp w
+mul x 0
+add x z
+mod x 26
+div z 1
+add x 14
+eql x w
+eql x 0
+mul y 0
+add y 25
+mul y x
+add y 1
+mul z y
+mul y 0
+add y w
+add y 2
+mul y x
+add z y"
+
+input_12 = "inp w
+mul x 0
+add x z
+mod x 26
+div z 26
+add x 0
+eql x w
+eql x 0
+mul y 0
+add y 25
+mul y x
+add y 1
+mul z y
+mul y 0
+add y w
+add y 2
+mul y x
+add z y"
+
+input_13 = "inp w
+mul x 0
+add x z
+mod x 26
+div z 26
+add x -15
+eql x w
+eql x 0
+mul y 0
+add y 25
+mul y x
+add y 1
+mul z y
+mul y 0
+add y w
+add y 12
+mul y x
+add z y"
+
+input_14 = "inp w
+mul x 0
+add x z
+mod x 26
+div z 26
+add x -4
+eql x w
+eql x 0
+mul y 0
+add y 25
+mul y x
+add y 1
+mul z y
+mul y 0
+add y w
+add y 7
+mul y x
+add z y"
+
+IO.inspect(AOC24.solve_3(input_11), label: "INPUT")
+#IO.inspect(AOC24.solve(input_0), label: "INPUT 0")
+#IO.inspect(AOC24.solve(input_1), label: "INPUT 1")
+#IO.inspect(AOC24.solve(input_2), label: "INPUT 2")
+#IO.inspect(AOC24.solve(input_3), label: "INPUT 3")
